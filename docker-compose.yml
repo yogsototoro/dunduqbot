@@ -1,0 +1,92 @@
+name: dunduqbot
+
+# nothing the bot does is written down · a container keeps no log at all
+x-logging: &logging
+  driver: "none"
+
+x-app: &app
+  build: .
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7.4.11@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7
+    restart: unless-stopped
+    logging: *logging
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --save ""
+      --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  caddy:
+    image: caddy:2.11.4@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - WEBHOOK_URL=${WEBHOOK_URL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      receiver:
+        condition: service_healthy
+
+  receiver:
+    <<: *app
+    command: python -m bot.receiver
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - REDIS_URL=${REDIS_URL}
+    ports:
+      - "127.0.0.1:9101:9101"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9101/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  scheduler:
+    <<: *app
+    command: python -m bot.scheduler
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - REDIS_URL=${REDIS_URL}
+
+  sender:
+    <<: *app
+    command: python -m bot.sender
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - REDIS_URL=${REDIS_URL}
+
+  refiller:
+    <<: *app
+    command: python -m bot.refiller
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - CATAPI_KEY=${CATAPI_KEY}
+
+volumes:
+  redis_data:
+  caddy_data:
+  caddy_config:
