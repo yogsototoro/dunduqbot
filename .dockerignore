@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.venv
+venv
+env
+__pycache__
+*.egg-info
+docker-compose.yml
+Caddyfile
