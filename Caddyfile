@@ -1,0 +1,3 @@
+{$WEBHOOK_URL} {
+	reverse_proxy /webhook receiver:9101
+}
