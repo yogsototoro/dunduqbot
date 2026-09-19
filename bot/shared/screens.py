@@ -65,7 +65,7 @@ def outcome_message(outcome: Outcome) -> str:
     return OUTCOME_MESSAGE.get(outcome, OUTCOME_MESSAGE[Outcome.BROKEN])
 
 
-PANEL_PHOTO = Path(__file__).parent.parent / "files" / "panel.jpg"
+PANEL_PHOTO = Path(__file__).parent.parent / "files" / "panel.png"
 
 
 class NavCb(CallbackData, prefix="nav"):
